@@ -8,9 +8,21 @@ jasmine.Runner = function(env) {
   var self = this;
   self.env = env;
   self.queue = new jasmine.Queue(env);
+  self.beforeAll_ = [];
+  self.afterAll_ = [];
   self.before_ = [];
   self.after_ = [];
   self.suites_ = [];
+};
+
+jasmine.Runner.prototype.beforeAll = function(beforeAllFunction) {
+  beforeAllFunction.typeName = 'beforeAll';
+  this.beforeAll_.unshift(beforeAllFunction);
+};
+
+jasmine.Runner.prototype.afterAll = function(afterAllFunction) {
+  afterAllFunction.typeName = 'afterAll';
+  this.afterAll_.unshift(afterAllFunction);
 };
 
 jasmine.Runner.prototype.execute = function() {
