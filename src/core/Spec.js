@@ -76,8 +76,8 @@ getJasmineRequireObj().Spec = function() {
         afters = this.afterFns() || [],
         thisOne = (this.fn.length) ? timeoutable(this.fn) : this.fn;
 
-    var beforeAlls = (this.id == 0) ? (this.beforeAllFns() || []) : [];
-    var afterAlls = (this.id == this.totalSpecsDefined()-1) ? (this.afterAllFns() || []) : [];
+    var beforeAlls = (this.id === 0) ? (this.beforeAllFns() || []) : [];
+    var afterAlls = (this.id === this.totalSpecsDefined()-1) ? (this.afterAllFns() || []) : [];
 
     var allFns = beforeAlls.concat(befores).concat(thisOne).concat(afters).concat(afterAlls);
 
