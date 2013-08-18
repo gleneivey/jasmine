@@ -1,101 +1,246 @@
-jasmine.HtmlReporter = function(_doc) {
-  var self = this;
-  var doc = _doc || window.document;
+jasmineRequire.HtmlReporter = function(j$) {
 
-  var reporterView;
-
-  var dom = {};
-
-  // Jasmine Reporter Public Interface
-  self.logRunningSpecs = false;
-
-  self.reportRunnerStarting = function(runner) {
-    var specs = runner.specs() || [];
-
-    if (specs.length == 0) {
-      return;
-    }
-
-    createReporterDom(runner.env.versionString());
-    doc.body.appendChild(dom.reporter);
-
-    reporterView = new jasmine.HtmlReporter.ReporterView(dom);
-    reporterView.addSpecs(specs, self.specFilter);
+  var noopTimer = {
+    start: function(){},
+    elapsed: function(){ return 0; }
   };
 
-  self.reportRunnerResults = function(runner) {
-    reporterView && reporterView.complete();
-  };
+  function HtmlReporter(options) {
+    var env = options.env || {},
+      getContainer = options.getContainer,
+      createElement = options.createElement,
+      createTextNode = options.createTextNode,
+      onRaiseExceptionsClick = options.onRaiseExceptionsClick || function() {},
+      timer = options.timer || noopTimer,
+      results = [],
+      specsExecuted = 0,
+      failureCount = 0,
+      pendingSpecCount = 0,
+      htmlReporterMain,
+      symbols;
 
-  self.reportSuiteResults = function(suite) {
-    reporterView.suiteComplete(suite);
-  };
+    this.initialize = function() {
+      htmlReporterMain = createDom("div", {className: "html-reporter"},
+        createDom("div", {className: "banner"},
+          createDom("span", {className: "title"}, "Jasmine"),
+          createDom("span", {className: "version"}, j$.version)
+        ),
+        createDom("ul", {className: "symbol-summary"}),
+        createDom("div", {className: "alert"}),
+        createDom("div", {className: "results"},
+          createDom("div", {className: "failures"})
+        )
+      );
+      getContainer().appendChild(htmlReporterMain);
 
-  self.reportSpecStarting = function(spec) {
-    if (self.logRunningSpecs) {
-      self.log('>> Jasmine Running ' + spec.suite.description + ' ' + spec.description + '...');
-    }
-  };
+      symbols = find(".symbol-summary");
+    };
 
-  self.reportSpecResults = function(spec) {
-    reporterView.specComplete(spec);
-  };
+    var totalSpecsDefined;
+    this.jasmineStarted = function(options) {
+      totalSpecsDefined = options.totalSpecsDefined || 0;
+      timer.start();
+    };
 
-  self.log = function() {
-    var console = jasmine.getGlobal().console;
-    if (console && console.log) {
-      if (console.log.apply) {
-        console.log.apply(console, arguments);
-      } else {
-        console.log(arguments); // ie fix: console.log.apply doesn't exist on ie
-      }
-    }
-  };
+    var summary = createDom("div", {className: "summary"});
 
-  self.specFilter = function(spec) {
-    if (!focusedSpecName()) {
-      return true;
-    }
+    var topResults = new j$.ResultsNode({}, "", null),
+      currentParent = topResults;
 
-    return spec.getFullName().indexOf(focusedSpecName()) === 0;
-  };
+    this.suiteStarted = function(result) {
+      currentParent.addChild(result, "suite");
+      currentParent = currentParent.last();
+    };
 
-  return self;
-
-  function focusedSpecName() {
-    var specName;
-
-    (function memoizeFocusedSpec() {
-      if (specName) {
+    this.suiteDone = function(result) {
+      if (currentParent == topResults) {
         return;
       }
 
-      var paramMap = [];
-      var params = doc.location.search.substring(1).split('&');
+      currentParent = currentParent.parent;
+    };
 
-      for (var i = 0; i < params.length; i++) {
-        var p = params[i].split('=');
-        paramMap[decodeURIComponent(p[0])] = decodeURIComponent(p[1]);
+    this.specStarted = function(result) {
+      currentParent.addChild(result, "spec");
+    };
+
+    var failures = [];
+    this.specDone = function(result) {
+      if (result.status != "disabled") {
+        specsExecuted++;
       }
 
-      specName = paramMap.spec;
-    })();
+      symbols.appendChild(createDom("li", {
+          className: result.status,
+          id: "spec_" + result.id,
+          title: result.fullName}
+      ));
 
-    return specName;
+      if (result.status == "failed") {
+        failureCount++;
+
+        var failure =
+          createDom("div", {className: "spec-detail failed"},
+            createDom("a", {className: "description", title: result.fullName, href: specHref(result)}, result.fullName),
+            createDom("div", {className: "messages"})
+          );
+        var messages = failure.childNodes[1];
+
+        for (var i = 0; i < result.failedExpectations.length; i++) {
+          var expectation = result.failedExpectations[i];
+          messages.appendChild(createDom("div", {className: "result-message"}, expectation.message));
+          messages.appendChild(createDom("div", {className: "stack-trace"}, expectation.stack));
+        }
+
+        failures.push(failure);
+      }
+
+      if (result.status == "pending") {
+        pendingSpecCount++;
+      }
+    };
+
+    this.jasmineDone = function() {
+      var banner = find(".banner");
+      banner.appendChild(createDom("span", {className: "duration"}, "finished in " + timer.elapsed() / 1000 + "s"));
+
+      var alert = find(".alert");
+
+      alert.appendChild(createDom("span", { className: "exceptions" },
+        createDom("label", { className: "label", 'for': "raise-exceptions" }, "raise exceptions"),
+        createDom("input", {
+          className: "raise",
+          id: "raise-exceptions",
+          type: "checkbox"
+        })
+      ));
+      var checkbox = find("input");
+
+      checkbox.checked = !env.catchingExceptions();
+      checkbox.onclick = onRaiseExceptionsClick;
+
+      if (specsExecuted < totalSpecsDefined) {
+        var skippedMessage = "Ran " + specsExecuted + " of " + totalSpecsDefined + " specs - run all";
+        alert.appendChild(
+          createDom("span", {className: "bar skipped"},
+            createDom("a", {href: "?", title: "Run all specs"}, skippedMessage)
+          )
+        );
+      }
+      var statusBarMessage = "" + pluralize("spec", specsExecuted) + ", " + pluralize("failure", failureCount);
+      if (pendingSpecCount) { statusBarMessage += ", " + pluralize("pending spec", pendingSpecCount); }
+
+      var statusBarClassName = "bar " + ((failureCount > 0) ? "failed" : "passed");
+      alert.appendChild(createDom("span", {className: statusBarClassName}, statusBarMessage));
+
+      var results = find(".results");
+      results.appendChild(summary);
+
+      summaryList(topResults, summary);
+
+      function summaryList(resultsTree, domParent) {
+        var specListNode;
+        for (var i = 0; i < resultsTree.children.length; i++) {
+          var resultNode = resultsTree.children[i];
+          if (resultNode.type == "suite") {
+            var suiteListNode = createDom("ul", {className: "suite", id: "suite-" + resultNode.result.id},
+              createDom("li", {className: "suite-detail"},
+                createDom("a", {href: specHref(resultNode.result)}, resultNode.result.description)
+              )
+            );
+
+            summaryList(resultNode, suiteListNode);
+            domParent.appendChild(suiteListNode);
+          }
+          if (resultNode.type == "spec") {
+            if (domParent.getAttribute("class") != "specs") {
+              specListNode = createDom("ul", {className: "specs"});
+              domParent.appendChild(specListNode);
+            }
+            specListNode.appendChild(
+              createDom("li", {
+                  className: resultNode.result.status,
+                  id: "spec-" + resultNode.result.id
+                },
+                createDom("a", {href: specHref(resultNode.result)}, resultNode.result.description)
+              )
+            );
+          }
+        }
+      }
+
+      if (failures.length) {
+        alert.appendChild(
+          createDom('span', {className: "menu bar spec-list"},
+            createDom("span", {}, "Spec List | "),
+            createDom('a', {className: "failures-menu", href: "#"}, "Failures")));
+        alert.appendChild(
+          createDom('span', {className: "menu bar failure-list"},
+            createDom('a', {className: "spec-list-menu", href: "#"}, "Spec List"),
+            createDom("span", {}, " | Failures ")));
+
+        find(".failures-menu").onclick = function() {
+          setMenuModeTo('failure-list');
+        };
+        find(".spec-list-menu").onclick = function() {
+          setMenuModeTo('spec-list');
+        };
+
+        setMenuModeTo('failure-list');
+
+        var failureNode = find(".failures");
+        for (var i = 0; i < failures.length; i++) {
+          failureNode.appendChild(failures[i]);
+        }
+      }
+    };
+
+    return this;
+
+    function find(selector) {
+      return getContainer().querySelector(selector);
+    }
+
+    function createDom(type, attrs, childrenVarArgs) {
+      var el = createElement(type);
+
+      for (var i = 2; i < arguments.length; i++) {
+        var child = arguments[i];
+
+        if (typeof child === 'string') {
+          el.appendChild(createTextNode(child));
+        } else {
+          if (child) {
+            el.appendChild(child);
+          }
+        }
+      }
+
+      for (var attr in attrs) {
+        if (attr == "className") {
+          el[attr] = attrs[attr];
+        } else {
+          el.setAttribute(attr, attrs[attr]);
+        }
+      }
+
+      return el;
+    }
+
+    function pluralize(singular, count) {
+      var word = (count == 1 ? singular : singular + "s");
+
+      return "" + count + " " + word;
+    }
+
+    function specHref(result) {
+      return "?spec=" + encodeURIComponent(result.fullName);
+    }
+
+    function setMenuModeTo(mode) {
+      htmlReporterMain.setAttribute("class", "html-reporter " + mode);
+    }
   }
 
-  function createReporterDom(version) {
-    dom.reporter = self.createDom('div', { id: 'HTMLReporter', className: 'jasmine_reporter' },
-      dom.banner = self.createDom('div', { className: 'banner' },
-        self.createDom('span', { className: 'title' }, "Jasmine "),
-        self.createDom('span', { className: 'version' }, version)),
-
-      dom.symbolSummary = self.createDom('ul', {className: 'symbolSummary'}),
-      dom.alert = self.createDom('div', {className: 'alert'}),
-      dom.results = self.createDom('div', {className: 'results'},
-        dom.summary = self.createDom('div', { className: 'summary' }),
-        dom.details = self.createDom('div', { id: 'details' }))
-    );
-  }
+  return HtmlReporter;
 };
-jasmine.HtmlReporterHelpers.addHelpers(jasmine.HtmlReporter);
