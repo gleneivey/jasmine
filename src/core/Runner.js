@@ -10,6 +10,8 @@ jasmine.Runner = function(env) {
   self.queue = new jasmine.Queue(env);
   self.before_ = [];
   self.after_ = [];
+  self.beforeAll_ = [];
+  self.afterAll_ = [];
   self.suites_ = [];
 };
 
@@ -21,6 +23,16 @@ jasmine.Runner.prototype.execute = function() {
   self.queue.start(function () {
     self.finishCallback();
   });
+};
+
+jasmine.Runner.prototype.beforeAll = function(beforeAllFunction) {
+  beforeAllFunction.typeName = 'beforeAll';
+  this.beforeAll_.splice(0,0,beforeAllFunction);
+};
+
+jasmine.Runner.prototype.afterAll = function(afterAllFunction) {
+  afterAllFunction.typeName = 'afterAll';
+  this.afterAll_.splice(0,0,afterAllFunction);
 };
 
 jasmine.Runner.prototype.beforeEach = function(beforeEachFunction) {
@@ -36,6 +48,9 @@ jasmine.Runner.prototype.afterEach = function(afterEachFunction) {
 
 jasmine.Runner.prototype.finishCallback = function() {
   this.env.reporter.reportRunnerResults(this);
+  for (var i = this.afterAll_.length-1; i >= 0; i--) {
+    this.afterAll_[i]();
+  }
 };
 
 jasmine.Runner.prototype.addSuite = function(suite) {

@@ -16,6 +16,7 @@ jasmine.Suite = function(env, description, specDefinitions, parentSuite) {
   self.env = env;
   self.before_ = [];
   self.after_ = [];
+  self.beforeAll_ = [];
   self.children_ = [];
   self.suites_ = [];
   self.specs_ = [];
@@ -35,6 +36,16 @@ jasmine.Suite.prototype.finish = function(onComplete) {
   if (typeof(onComplete) == 'function') {
     onComplete();
   }
+};
+
+jasmine.Suite.prototype.beforeAll = function(beforeAllFunction) {
+  beforeAllFunction.typeName = 'beforeAll';
+  this.beforeAll_.unshift(beforeAllFunction);
+};
+
+jasmine.Suite.prototype.afterAll = function(afterAllFunction) {
+  afterAllFunction.typeName = 'afterAll';
+  this.env.currentRunner().afterAll(afterAllFunction);
 };
 
 jasmine.Suite.prototype.beforeEach = function(beforeEachFunction) {

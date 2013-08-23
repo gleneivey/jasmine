@@ -954,6 +954,21 @@ describe("jasmine spec running", function () {
 
   it("should permit nested describes", function() {
     var actions = [];
+    env.beforeAll(function() {
+      actions.push('first beforeAll');
+    });
+
+    env.beforeAll(function() {
+      actions.push('second beforeAll');
+    });
+
+    env.afterAll(function() {
+      actions.push('first afterAll');
+    });
+
+    env.afterAll(function() {
+      actions.push('second afterAll');
+    });
 
     env.beforeEach(function () {
       actions.push('runner beforeEach');
@@ -995,6 +1010,22 @@ describe("jasmine spec running", function () {
       });
 
       env.describe('Inner 2', function() {
+        env.beforeAll(function() {
+          actions.push("child's first beforeAll");
+        });
+
+        env.afterAll(function() {
+          actions.push("child's first afterAll");
+        });
+
+        env.afterAll(function() {
+          actions.push("child's second afterAll");
+        });
+
+        env.beforeAll(function() {
+          actions.push("child's second beforeAll");
+        });
+
         env.beforeEach(function() {
           actions.push('inner 2 beforeEach');
         });
@@ -1013,6 +1044,8 @@ describe("jasmine spec running", function () {
 
 
     var expected = [
+      "first beforeAll",
+      "second beforeAll",
       "runner beforeEach",
       "outer beforeEach",
       "outer it 1",
@@ -1033,13 +1066,19 @@ describe("jasmine spec running", function () {
       "outer afterEach",
       "runner afterEach",
 
+      "child's first beforeAll",
+      "child's second beforeAll",
       "runner beforeEach",
       "outer beforeEach",
       "inner 2 beforeEach",
       "inner 2 it",
       "inner 2 afterEach",
       "outer afterEach",
-      "runner afterEach"
+      "runner afterEach",
+      "first afterAll",
+      "second afterAll",
+      "child's first afterAll",
+      "child's second afterAll"
     ];
     expect(actions).toEqual(expected);
   });

@@ -160,23 +160,49 @@ jasmine.Spec.prototype.after = function(doAfter) {
   }
 };
 
+
+jasmine.Spec.prototype.runAllParentBeforeAlls = function() {
+  var specs = [ this.suite, this.env.currentRunner() ];
+  var accumulator = [];
+
+  for (var i=0; i < 2; i++) {
+    var spec = specs[i];
+
+    accumulator = accumulator.concat(spec.beforeAll_);
+    spec.beforeAll_ = [];
+
+    var suite = spec.suite;
+    while (suite) {
+      accumulator = accumulator.concat(suite.beforeAll_);
+      suite.beforeAll_ = [];
+      suite = suite.parentSuite;
+    }
+  }
+
+  for (i = 0; i < accumulator.length; i++) {
+    this.queue.addBefore(new jasmine.Block(this.env, accumulator[i], this));
+  }
+}
+
 jasmine.Spec.prototype.execute = function(onComplete) {
   var spec = this;
+
   if (!spec.env.specFilter(spec)) {
     spec.results_.skipped = true;
     spec.finish(onComplete);
-    return;
   }
+  else {
+    this.env.reporter.reportSpecStarting(this);
 
-  this.env.reporter.reportSpecStarting(this);
+    spec.env.currentSpec = spec;
 
-  spec.env.currentSpec = spec;
+    spec.addBeforesAndAftersToQueue();
+    spec.runAllParentBeforeAlls();
 
-  spec.addBeforesAndAftersToQueue();
-
-  spec.queue.start(function () {
-    spec.finish(onComplete);
-  });
+    spec.queue.start(function () {
+      spec.finish(onComplete);
+    });
+  }
 };
 
 jasmine.Spec.prototype.addBeforesAndAftersToQueue = function() {
@@ -240,4 +266,3 @@ jasmine.Spec.prototype.removeAllSpies = function() {
   }
   this.spies_ = [];
 };
-

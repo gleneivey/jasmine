@@ -43,6 +43,7 @@ task :list_dev_tasks do
   system "thor list"
 end
 
+require "yaml"
 require "jasmine"
 require 'rspec'
 require 'rspec/core/rake_task'

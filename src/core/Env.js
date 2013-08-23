@@ -120,6 +120,22 @@ jasmine.Env.prototype.describe = function(description, specDefinitions) {
   return suite;
 };
 
+jasmine.Env.prototype.beforeAll = function(beforeAllFunction) {
+  if (this.currentSuite) {
+    this.currentSuite.beforeAll(beforeAllFunction);
+  } else {
+    this.currentRunner_.beforeAll(beforeAllFunction);
+  }
+};
+
+jasmine.Env.prototype.afterAll = function(afterAllFunction) {
+  if (this.currentSuite) {
+    this.currentSuite.afterAll(afterAllFunction);
+  } else {
+    this.currentRunner_.afterAll(afterAllFunction);
+  }
+};
+
 jasmine.Env.prototype.beforeEach = function(beforeEachFunction) {
   if (this.currentSuite) {
     this.currentSuite.beforeEach(beforeEachFunction);
@@ -128,17 +144,16 @@ jasmine.Env.prototype.beforeEach = function(beforeEachFunction) {
   }
 };
 
-jasmine.Env.prototype.currentRunner = function () {
-  return this.currentRunner_;
-};
-
 jasmine.Env.prototype.afterEach = function(afterEachFunction) {
   if (this.currentSuite) {
     this.currentSuite.afterEach(afterEachFunction);
   } else {
     this.currentRunner_.afterEach(afterEachFunction);
   }
+};
 
+jasmine.Env.prototype.currentRunner = function () {
+  return this.currentRunner_;
 };
 
 jasmine.Env.prototype.xdescribe = function(desc, specDefinitions) {

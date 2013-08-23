@@ -561,6 +561,30 @@ var waitsFor = function(latchFunction, optional_timeoutMessage, optional_timeout
 if (isCommonJS) exports.waitsFor = waitsFor;
 
 /**
+ * A function that is called before all specs in a suite.
+ *
+ * Used for spec setup, including seting up external infrastructure.
+ *
+ * @param {Function} beforeAllFunction
+ */
+var beforeAll = function(beforeAllFunction) {
+  jasmine.getEnv().beforeAll(beforeAllFunction);
+};
+if (isCommonJS) exports.beforeAll = beforeAll;
+
+/**
+ * A function that is called after all specs in a suite.
+ *
+ * Used for shutting down external components
+ *
+ * @param {Function} afterAllFunction
+ */
+var afterAll = function(afterAllFunction) {
+  jasmine.getEnv().afterAll(afterAllFunction);
+};
+if (isCommonJS) exports.afterAll = afterAll;
+
+/**
  * A function that is called before each spec in a suite.
  *
  * Used for spec setup, including validating assumptions.
